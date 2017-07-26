@@ -139,6 +139,40 @@ class RosXmlParser:
 
         return items
 
+    def get_multiple_with_version(self, xpath, required=False):
+        """Return list of dependencies and version attribs for given xpath."""
+        def catkin_to_bitbake(version_type):
+            """Map the Catkin version modifier to BitBake."""
+            mapper = {
+                    "version_lt": "<",
+                    "version_lte": "<=",
+                    "version_eq": "=",
+                    "version_gte": ">=",
+                    "version_gt": ">",
+                    }
+            return mapper.get(version_type, "UNDEFINED")
+
+        items = []
+        xpath_list = self.tree.xpath(xpath)
+        if len(xpath_list) < 1:
+            if required:
+                LOGGER.error("ROS package.xml missing element " + str(xpath))
+        for item in xpath_list:
+            fullstring = self.clean_string(item.text)
+            if len(item.attrib) > 1:
+                LOGGER.error("ROS package.xml element " + str(xpath) +
+                             " has too many attributes!")
+            for version_type in item.attrib:
+                c_version_type = catkin_to_bitbake(version_type)
+                c_value = self.clean_string(item.attrib[version_type])
+                if len(c_value) > 1:
+                    c_version_type = c_version_type + " " + c_value
+                if len(c_version_type) > 1:
+                    fullstring = fullstring + " (" + c_version_type + ")"
+            items.append(fullstring)
+
+        return items
+
     def get_name(self):
         """Return the Name of the ROS package."""
         return self.get_single("/package/name")
@@ -169,11 +203,44 @@ class RosXmlParser:
         """Return list of Licenses of the ROS package."""
         return self.get_multiple("/package/license")
 
-    def get_dependencies(self):
-        """Return list of package Dependencies of the ROS package."""
+    def get_build_dependencies(self):
+        """Return list of package Build Dependencies of the ROS package."""
         dependencies = []
-        for dependency in self.get_multiple("/package/build_depend"):
-            dependencies.append(dependency.text.replace("_", "-"))
+
+        # build_depend is both format 1 & 2
+        for dependency in self.get_multiple_with_version(
+                "/package/build_depend"):
+            dependencies.append(dependency.replace("_", "-"))
+        if self.package_format > 1:
+            for dependency in self.get_multiple_with_version(
+                    "/package/depend"):
+                dependencies.append(dependency.replace("_", "-"))
+
+        # remove any duplicates
+        dependencies = list(set(dependencies))
+
+        return dependencies
+
+    def get_runtime_dependencies(self):
+        """Return list of package Run Dependencies of the ROS package."""
+        dependencies = []
+
+        # run_depend is format 1 only
+        if self.package_format == 1:
+            for dependency in self.get_multiple_with_version(
+                    "/package/run_depend"):
+                dependencies.append(dependency.replace("_", "-"))
+        if self.package_format == 2:
+            for dependency in self.get_multiple_with_version(
+                    "/package/exec_depend"):
+                dependencies.append(dependency.replace("_", "-"))
+            for dependency in self.get_multiple_with_version(
+                    "/package/depend"):
+                dependencies.append(dependency.replace("_", "-"))
+
+        # remove any duplicates
+        dependencies = list(set(dependencies))
+
         return dependencies
 
 
@@ -224,7 +291,7 @@ class CatkinRecipeHandler(RecipeHandler):
 
                 licenses = xml.get_licenses()
                 if len(licenses) < 1:
-                    LOGGER.error("package.xml missing reqired LICENSE field!")
+                    LOGGER.error("package.xml missing required LICENSE field!")
                 else:
                     lines_after.append("LICENSE = \"" +
                                        " & ".join(licenses) + "\"")
@@ -258,6 +325,23 @@ class CatkinRecipeHandler(RecipeHandler):
 
                 lines_after.append("SECTION = \"devel\"")
 
+                dependencies = xml.get_build_dependencies()
+                if len(dependencies) > 0:
+                    lines_after.append("DEPENDS = \"" +
+                                       dependencies[0] + "\"")
+                    del dependencies[0]
+                    for dependency in dependencies:
+                        lines_after.append("DEPENDS += \"" +
+                                           dependency + "\"")
+
+                dependencies = xml.get_runtime_dependencies()
+                if len(dependencies) > 0:
+                    lines_after.append("RDEPENDS_${PN}-dev = \"" +
+                                       dependencies[0] + "\"")
+                    del dependencies[0]
+                    for dependency in dependencies:
+                        lines_after.append("RDEPENDS_${PN}-dev += \"" +
+                                           dependency + "\"")
             return True
         else:
             lines_after.append('### ERROR: ' +
