@@ -199,6 +199,10 @@ class RosXmlParser:
         """Return list of Maintainers of the ROS package."""
         return self.get_multiple_with_email("/package/maintainer")
 
+    def get_urls(self):
+        """Return list of Website URLs for the ROS package."""
+        return self.get_multiple("/package/url", required=False)
+
     def get_licenses(self):
         """Return list of Licenses of the ROS package."""
         return self.get_multiple("/package/license")
@@ -304,6 +308,15 @@ class CatkinRecipeHandler(RecipeHandler):
 
                 lines_after.append("DESCRIPTION = \"" +
                                    xml.get_description() + "\"")
+
+                urls = xml.get_urls()
+                if len(urls) > 0:
+                    lines_after.append("HOMEPAGE = \"" +
+                                       urls[0] + "\"")
+                    del urls[0]
+                    for url in urls:
+                        lines_after.append("HOMEPAGE += \"" +
+                                           url + "\"")
 
                 authors = xml.get_authors()
                 if len(authors) > 0:
