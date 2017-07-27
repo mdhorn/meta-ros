@@ -378,6 +378,8 @@ class CatkinRecipeHandler(RecipeHandler):
                                    xml.get_format())
                 lines_after.append('')
 
+                lines_after.append("SUMMARY = \"" +
+                                   "ROS package " + xml.get_name() + "\"")
                 lines_after.append("DESCRIPTION = \"" +
                                    xml.get_description() + "\"")
 
