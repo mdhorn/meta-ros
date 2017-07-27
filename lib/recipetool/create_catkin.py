@@ -22,6 +22,8 @@ import logging
 from html.parser import HTMLParser
 from lxml import etree
 
+import hashlib
+
 from recipetool.create import RecipeHandler
 from recipetool.create_buildsys import CmakeExtensionHandler
 
@@ -173,6 +175,19 @@ class RosXmlParser:
 
         return items
 
+    def get_multiple_with_linenumber(self, xpath, required=False):
+        """Return dict of string and their line numbers for given xpath."""
+        items = {}
+        xpath_list = self.tree.xpath(xpath)
+        if len(xpath_list) < 1:
+            if required:
+                LOGGER.error("ROS package.xml missing element " + str(xpath))
+        for item in xpath_list:
+            c_string = self.clean_string(item.text)
+            items[c_string] = item.sourceline
+
+        return items
+
     def get_name(self):
         """Return the Name of the ROS package."""
         return self.get_single("/package/name")
@@ -205,7 +220,7 @@ class RosXmlParser:
 
     def get_licenses(self):
         """Return list of Licenses of the ROS package."""
-        return self.get_multiple("/package/license")
+        return self.get_multiple_with_linenumber("/package/license")
 
     def get_build_dependencies(self):
         """Return list of package Build Dependencies of the ROS package."""
@@ -268,6 +283,63 @@ class CatkinCmakeHandler(CmakeExtensionHandler):
 class CatkinRecipeHandler(RecipeHandler):
     """Catkin handler extension for recipetool."""
 
+    def process_license(self,
+                        srctree, classes, lines_before,
+                        lines_after, handled, extravalues,
+                        licenses, license_file):
+        """Generate the Catkin license data.
+
+        licenses: a dictionary of license:line_number
+        license_file: the name of the license file
+        """
+        all_lines = []
+        license_keys = list(licenses.keys())
+
+        def get_license_checksum(license):
+            """Output the license details."""
+            line_number = licenses[license]
+
+            m = hashlib.md5()
+            try:
+                lic_line = all_lines[line_number - 1]
+                m.update(lic_line.encode('utf-8'))
+                md5val = m.hexdigest()
+            except UnicodeEncodeError:
+                md5val = None
+
+            LOGGER.debug("License: '" + license + "' on line " +
+                         str(line_number) + " with md5 " + md5val)
+
+            checksum = "file://" + os.path.basename(license_file) + \
+                ";" + "beginline=" + str(line_number) + ";endline=" + \
+                str(line_number) + ";md5=" + md5val
+            return checksum
+
+        try:
+            lic_file = open(license_file)
+            all_lines = lic_file.readlines()
+            lic_file.close()
+        except:
+            LOGGER.error("License file '" + license_file + "'not readable!")
+            return False
+
+        checksum_files = []
+        if len(license_keys) > 0:
+            checksum_files.append(get_license_checksum(license_keys[0]))
+            del license_keys[0]
+
+            for license in license_keys:
+                checksum_files.append(get_license_checksum(license))
+
+        clean_keys = [re.sub(r',', '', lic) for lic in licenses.keys()]
+        # Commas are not valid in BitBake License name
+        lines_before.append('LICENSE = "%s"' % ' & '.  join(clean_keys))
+        lines_before.append('LIC_FILES_CHKSUM = "%s"' %
+                            ' \\\n                    '.join(checksum_files))
+        lines_before.append('')
+
+        extravalues['LICENSE'] = " & ".join(clean_keys)
+
     def process(self, srctree, classes, lines_before, lines_after, handled,
                 extravalues):
         """Main processing function for Catkin recipe.
@@ -297,9 +369,9 @@ class CatkinRecipeHandler(RecipeHandler):
                 if len(licenses) < 1:
                     LOGGER.error("package.xml missing required LICENSE field!")
                 else:
-                    lines_after.append("LICENSE = \"" +
-                                       " & ".join(licenses) + "\"")
-                    extravalues['LICENSE'] = " & ".join(licenses)
+                    self.process_license(srctree, classes, lines_before,
+                                         lines_after, handled, extravalues,
+                                         licenses, package_file)
 
                 lines_after.append('# This is a Catkin (ROS) based recipe')
                 lines_after.append('# ROS package.xml format version ' +
