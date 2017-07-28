@@ -276,8 +276,8 @@ class CatkinCmakeHandler(CmakeExtensionHandler):
         if pkg == 'catkin':
             global IS_CATKIN
             IS_CATKIN = True
-            return True
-        return False
+
+        return True
 
 
 class CatkinRecipeHandler(RecipeHandler):
@@ -352,7 +352,8 @@ class CatkinRecipeHandler(RecipeHandler):
             # lines_after.append('# This is NOT a Catkin (ROS) based recipe')
             return False
 
-        package_list = RecipeHandler.checkfiles(srctree, ['package.xml'])
+        package_list = RecipeHandler.checkfiles(srctree, ['package.xml'],
+                                                recursive=False)
         if len(package_list) > 0:
             for package_file in package_list:
                 LOGGER.info("Found package_file: " + package_file)
