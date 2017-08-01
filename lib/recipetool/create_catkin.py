@@ -129,13 +129,13 @@ class RosXmlParser:
     def get_multiple_with_email(self, xpath, required=True):
         """Return list of string values and email attrib for given xpath."""
         items = []
-        xpath_list = self.tree.xpath(xpath + "[@email]")
+        xpath_list = self.tree.xpath(xpath)
         if len(xpath_list) < 1:
             if required:
                 LOGGER.error("ROS package.xml missing element " + str(xpath))
         for item in xpath_list:
             fullstring = self.clean_string(item.text)
-            email = self.clean_string(item.get('email'))
+            email = self.clean_string(item.get('email', ''))
             if len(email) > 0:
                 fullstring = fullstring + " <" + email + ">"
             items.append(fullstring)
