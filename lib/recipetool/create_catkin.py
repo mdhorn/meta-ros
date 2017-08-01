@@ -76,7 +76,8 @@ class RosXmlParser:
         # http://wiki.ros.org/catkin/package.xml#Format_2_.28Recommended.29
         package_format_list = self.tree.xpath("/package[@format]")
         for pkg_format in package_format_list:
-            self.package_format = int(pkg_format.get('format'))
+            self.package_format = int(pkg_format.get('format',
+                                      self.package_format))
         if self.package_format > 2:
             self.package_format = 2
             LOGGER.warning("FORCING ROS Package Format to version " +
