@@ -16,8 +16,12 @@ BitBake recipe files for ROS packages.
   branch, so be sure to include the correct branch for the desired
   distribution as part of the URI: `<URI>;branch=indigo-devel`
 
+## EXAMPLES ##
+Use the XBox Kinect Camera
 ```
-devtool add --src-subdir=ros_comm "https://github.com/ros/ros_comm.git;branch=indigo-devel"
+devtool add --src-subdir=freenect_stack "https://github.com/ros-drivers/freenect_stack.git"
+devtool add --src-subdir=freenect_launch "https://github.com/ros-drivers/freenect_stack.git"
+devtool add --src-subdir=freenect_camera "https://github.com/ros-drivers/freenect_stack.git"
 ```
 
 ## TO DO ##
