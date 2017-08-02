@@ -114,15 +114,17 @@ class RosXmlParser:
 
         return self.clean_string(xpath_list[0].text)
 
-    def get_multiple(self, xpath, required=True):
-        """Return a list of string values for the given xpath."""
-        items = []
+    def get_multiple_with_type(self, xpath, required=False):
+        """Return dict of type attributes and the matching urls from xpath."""
+        items = {}
         xpath_list = self.tree.xpath(xpath)
         if len(xpath_list) < 1:
             if required:
                 LOGGER.error("ROS package.xml missing element " + str(xpath))
         for item in xpath_list:
-            items.append(self.clean_string(item.text))
+            url_string = self.clean_string(item.text)
+            url_type = self.clean_string(item.get('type', '')).lower()
+            items[url_type] = url_string
 
         return items
 
@@ -217,7 +219,7 @@ class RosXmlParser:
 
     def get_urls(self):
         """Return list of Website URLs for the ROS package."""
-        return self.get_multiple("/package/url", required=False)
+        return self.get_multiple_with_type("/package/url", required=False)
 
     def get_licenses(self):
         """Return list of Licenses of the ROS package."""
@@ -385,14 +387,22 @@ class CatkinRecipeHandler(RecipeHandler):
                 lines_after.append("DESCRIPTION = \"" +
                                    xml.get_description() + "\"")
 
+                # Map the Catkin URLs to BitBake
                 urls = xml.get_urls()
-                if len(urls) > 0:
+                if 'website' in urls:
                     lines_after.append("HOMEPAGE = \"" +
-                                       urls[0] + "\"")
-                    del urls[0]
-                    for url in urls:
-                        lines_after.append("HOMEPAGE += \"" +
-                                           url + "\"")
+                                       urls['website'] + "\"")
+                else:
+                    if '' in urls:
+                        lines_after.append("HOMEPAGE = \"" +
+                                           urls[''] + "\"")
+                if 'bugtracker' in urls:
+                    lines_after.append("# ROS_BUGTRACKER = \"" +
+                                       urls['bugtracker'] + "\"")
+
+                if 'repository' in urls:
+                    lines_after.append("# SRC_URI = \"" +
+                                       urls['repository'] + "\"")
 
                 authors = xml.get_authors()
                 if len(authors) > 0:
