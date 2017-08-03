@@ -29,8 +29,6 @@ from recipetool.create_buildsys import CmakeExtensionHandler
 
 LOGGER = logging.getLogger('recipetool')
 
-IS_CATKIN = False
-
 
 class RosHTMLParser(HTMLParser):
     """ROS HTML Parser class.
@@ -266,23 +264,6 @@ class RosXmlParser:
         return dependencies
 
 
-class CatkinCmakeHandler(CmakeExtensionHandler):
-    """Catkin handler extension for CMake build system."""
-
-    def process_findpackage(self, srctree, fn, pkg, deps, outlines,
-                            inherits, values):
-        """Set global flag if this is catkin package.
-
-        This is needed for the RecipeHandler to ensure we are processing
-        a catkin build system recipe.
-        """
-        if pkg == 'catkin':
-            global IS_CATKIN
-            IS_CATKIN = True
-
-        return True
-
-
 class CatkinRecipeHandler(RecipeHandler):
     """Catkin handler extension for recipetool."""
 
@@ -347,23 +328,18 @@ class CatkinRecipeHandler(RecipeHandler):
                 extravalues):
         """Main processing function for Catkin recipe.
 
-        We remove 'cmake' from the inherit and add in 'catkin'.
         Read the key tags from the package.xml ROS file and generate
         the corresponding recipe variables for the recipe file.
         """
-        if not IS_CATKIN:
-            # lines_after.append('# This is NOT a Catkin (ROS) based recipe')
-            return False
-
         package_list = RecipeHandler.checkfiles(srctree, ['package.xml'],
                                                 recursive=False)
         if len(package_list) > 0:
+            handled.append('buildsystem')
+
             for package_file in package_list:
                 LOGGER.info("Found package_file: " + package_file)
                 xml = RosXmlParser(package_file)
-                # When building, we only want the catkin build class, not cmake
-                # even though catkin is really cmake+python tooling
-                classes.remove('cmake')
+
                 classes.append('catkin')
 
                 extravalues['PN'] = xml.get_name()  # Ignored if set
@@ -451,10 +427,8 @@ class CatkinRecipeHandler(RecipeHandler):
 
 
 def register_recipe_handlers(handlers):
-    """Register our recipe handler in front of default cmake handler."""
-    handlers.append((CatkinRecipeHandler(), 21))
+    """Register our recipe handler in front of default cmake handler.
 
-
-def register_cmake_handlers(handlers):
-    """Register our CMake extension handler."""
-    handlers.append(CatkinCmakeHandler())
+    Catkin needs to be a higher priority than CMake (50).
+    """
+    handlers.append((CatkinRecipeHandler(), 90))
