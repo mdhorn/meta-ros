@@ -418,10 +418,6 @@ class CatkinRecipeHandler(RecipeHandler):
                         lines_after.append("RDEPENDS_${PN}-dev += \"" +
                                            dependency + "\"")
             return True
-        else:
-            lines_after.append('### ERROR: ' +
-                               'Catkin project missing required package.xml')
-            LOGGER.error('Catkin project missing required package.xml')
 
         return False
 
