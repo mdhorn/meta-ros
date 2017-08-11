@@ -19,9 +19,9 @@ BitBake recipe files for ROS packages.
 ## EXAMPLES ##
 Use the XBox Kinect Camera
 ```
-devtool add --src-subdir=freenect_stack "https://github.com/ros-drivers/freenect_stack.git"
-devtool add --src-subdir=freenect_launch "https://github.com/ros-drivers/freenect_stack.git"
-devtool add --src-subdir=freenect_camera "https://github.com/ros-drivers/freenect_stack.git"
+devtool add --src-subdir=freenect_stack  freenect-stack  "https://github.com/ros-drivers/freenect_stack.git"
+devtool add --src-subdir=freenect_launch freenect-launch "https://github.com/ros-drivers/freenect_stack.git"
+devtool add --src-subdir=freenect_camera freenect-camera "https://github.com/ros-drivers/freenect_stack.git"
 ```
 
 ## TO DO ##
